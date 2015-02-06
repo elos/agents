@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+type NewAgent func(db data.DB, a data.Identifiable, d time.Duration) autonomous.Agent
+
 type Outfitter struct {
 	StartAgent chan autonomous.Agent
 	StopAgent  chan autonomous.Agent
@@ -42,7 +44,7 @@ func (o *Outfitter) Run() {
 	}
 }
 
-var DefaultAgents map[time.Duration]autonomous.NewAgent = map[time.Duration]autonomous.NewAgent{
+var DefaultAgents map[time.Duration]NewAgent = map[time.Duration]NewAgent{
 	DefaultSleepAgentStartPeriod: NewSleepAgent,
 }
 

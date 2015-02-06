@@ -1,7 +1,6 @@
 package agents
 
 import (
-	"log"
 	"time"
 
 	"github.com/elos/autonomous"
@@ -11,7 +10,10 @@ import (
 var DefaultSleepAgentStartPeriod time.Duration = 10 * time.Second
 
 type SleepAgent struct {
-	*autonomous.Core
+	autonomous.Life
+	autonomous.Managed
+	autonomous.Tallied
+	autonomous.Stopper
 
 	startPeriod time.Duration
 	ticker      *time.Ticker
@@ -20,30 +22,33 @@ type SleepAgent struct {
 }
 
 func NewSleepAgent(db data.DB, a data.Identifiable, d time.Duration) autonomous.Agent {
-	return &SleepAgent{
-		Core:        autonomous.NewCore(),
-		startPeriod: d,
-		DB:          db,
-	}
+	s := new(SleepAgent)
+	s.Life = autonomous.NewLife()
+	s.startPeriod = d
+	s.DB = db
+
+	return s
 }
 
 func (s *SleepAgent) Run() {
 	s.startup()
-	stopChannel := s.Core.StopChannel()
+	s.Life.Begin()
 
+Run:
 	for {
 		select {
-		case _ = <-s.ticker.C:
+		case <-s.ticker.C:
 			go s.Go()
-		case _ = <-*stopChannel:
-			s.shutdown()
-			break
+		case <-s.Stopper:
+			break Run
 		}
 	}
+
+	s.shutdown()
+	s.Life.End()
 }
 
 func (s *SleepAgent) startup() {
-	s.Core.Startup()
 	s.ticker = time.NewTicker(s.startPeriod)
 	go s.Go()
 }
@@ -51,12 +56,10 @@ func (s *SleepAgent) startup() {
 func (s *SleepAgent) shutdown() {
 	s.ticker.Stop()
 	s.ticker = nil
-	s.Core.Shutdown()
 }
 
 func (s *SleepAgent) Go() {
-	s.IncrementProcesses()
-	log.Print("This is the sleep agent checking in")
+	s.Tallied.Incr()
 	// implement what the sleep agent would actually do
-	s.DecrementProcesses()
+	s.Tallied.Decr()
 }

@@ -7,7 +7,9 @@ import (
 )
 
 type ClientDataAgent struct {
-	*autonomous.Core
+	autonomous.Life
+	autonomous.Managed
+	autonomous.Stopper
 	*autonomous.Identified
 	data.Store
 
@@ -16,47 +18,44 @@ type ClientDataAgent struct {
 }
 
 func NewClientDataAgent(c transfer.SocketConnection, s data.Store) *ClientDataAgent {
-	a := &ClientDataAgent{
-		Core:             autonomous.NewCore(),
-		Identified:       autonomous.NewIdentified(),
-		SocketConnection: c,
-		Store:            s,
-		read:             make(chan *transfer.Envelope),
-	}
-
+	a := new(ClientDataAgent)
+	a.Identified = autonomous.NewIdentified()
+	a.Life = autonomous.NewLife()
+	a.SocketConnection = c
+	a.Store = s
 	a.SetDataOwner(c.Agent())
 
 	return a
 }
 
 func (a *ClientDataAgent) Run() {
-	a.startup()
-	stopChannel := a.Core.StopChannel()
 	modelsChannel := *a.Store.RegisterForUpdates(a.DataOwner())
-
+	a.startup()
+	a.Life.Begin()
+Run:
 	for {
 		select {
 		case e := <-a.read:
 			go transfer.Route(e, a.Store)
 		case p := <-modelsChannel:
 			a.WriteJSON(p)
-		case _ = <-*stopChannel:
-			a.shutdown()
-			break
+		case <-a.Stopper:
+			break Run
 		}
 	}
+
+	a.shutdown()
+	a.Life.End()
 }
 
 func (a *ClientDataAgent) startup() {
-	a.Core.Startup()
-	go ReadSocketConnection(a.SocketConnection, &a.read, a.Core.StopChannel())
+	go ReadSocketConnection(a.SocketConnection, &a.read, a.Stopper)
 }
 
 func (a *ClientDataAgent) shutdown() {
-	a.Core.Shutdown()
 }
 
-func ReadSocketConnection(c transfer.SocketConnection, rc *chan *transfer.Envelope, endChannel *chan bool) {
+func ReadSocketConnection(c transfer.SocketConnection, rc *chan *transfer.Envelope, closed chan bool) {
 	// TODO add read limit and deadline
 	for {
 		var e transfer.Envelope
@@ -78,7 +77,7 @@ func ReadSocketConnection(c transfer.SocketConnection, rc *chan *transfer.Envelo
 		*rc <- &e
 	}
 
-	*endChannel <- true
+	closed <- true
 }
 
 func (a *ClientDataAgent) WriteJSON(v interface{}) {
