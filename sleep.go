@@ -23,6 +23,7 @@ type SleepAgent struct {
 
 func NewSleepAgent(db data.DB, a data.Identifiable, d time.Duration) autonomous.Agent {
 	s := new(SleepAgent)
+
 	s.Life = autonomous.NewLife()
 	s.startPeriod = d
 	s.DB = db
@@ -30,8 +31,10 @@ func NewSleepAgent(db data.DB, a data.Identifiable, d time.Duration) autonomous.
 	return s
 }
 
-func (s *SleepAgent) Run() {
-	s.startup()
+func (s *SleepAgent) Start() {
+	s.ticker = time.NewTicker(s.startPeriod)
+	go s.Go()
+
 	s.Life.Begin()
 
 Run:
@@ -44,18 +47,10 @@ Run:
 		}
 	}
 
-	s.shutdown()
-	s.Life.End()
-}
-
-func (s *SleepAgent) startup() {
-	s.ticker = time.NewTicker(s.startPeriod)
-	go s.Go()
-}
-
-func (s *SleepAgent) shutdown() {
 	s.ticker.Stop()
 	s.ticker = nil
+
+	s.Life.End()
 }
 
 func (s *SleepAgent) Go() {

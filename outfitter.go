@@ -35,7 +35,7 @@ func (o *Outfitter) Run() {
 	for {
 		select {
 		case a := <-o.StartAgent:
-			go a.Run()
+			go a.Start()
 			o.registeredAgents[a] = true
 		case a := <-o.StopAgent:
 			go a.Stop()
