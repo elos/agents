@@ -29,7 +29,7 @@ func NewClientDataAgent(c transfer.SocketConnection, access *data.Access) *Clien
 }
 
 func (a *ClientDataAgent) Start() {
-	var mc chan *data.Change = *a.RegisterForUpdates(a.Client)
+	var mc chan *data.Change = *a.RegisterForChanges()
 	go ReadSocketConnection(a.SocketConnection, a.read, a.Stopper)
 	a.Life.Begin()
 
