@@ -34,8 +34,8 @@ func (a *ActionAgent) Start() {
 	a.Life.Begin()
 	log.Print("Action Agent Booting up")
 
-	// FIXME subscribe directly to user, db access can be different
-	// than the user
+	// FIXME subscribe directly to user, db access have
+	// a client different than theusercan be different than the user
 	changes := *a.Access.RegisterForChanges()
 
 Run:
