@@ -10,7 +10,7 @@ import (
 	"github.com/elos/models/action"
 )
 
-type ActionAgent struct {
+type RoutineAgent struct {
 	autonomous.Life
 	autonomous.Managed
 	autonomous.Stopper
@@ -19,29 +19,21 @@ type ActionAgent struct {
 	models.User
 	ticker *time.Ticker
 
-	*autonomous.Hub
-	*RoutineAgent
+	candidate models.Action
 }
 
-func NewActionAgent(a data.Access, u models.User) *ActionAgent {
-	return &ActionAgent{
+func NewRoutineAgent(a data.Access, u models.User) *RoutineAgent {
+	return &RoutineAgent{
 		Access:  a,
 		User:    u,
 		Life:    autonomous.NewLife(),
 		Stopper: make(autonomous.Stopper),
-		Hub:     autonomous.NewHub(),
 	}
 }
 
-func (a *ActionAgent) Start() {
-	go a.Hub.Start()
-
-	a.RoutineAgent = NewRoutineAgent(a.Access, a.User)
-	go a.StartAgent(a.RoutineAgent)
-
+func (a *RoutineAgent) Start() {
 	a.ticker = time.NewTicker(1 * time.Second)
 	a.Life.Begin()
-	log.Print("Action Agent Booting up")
 
 	// FIXME subscribe directly to user, db access have
 	// a client different than theusercan be different than the user
@@ -53,7 +45,7 @@ Run:
 		case c := <-changes:
 			go a.changeSieve(c)
 		case <-a.ticker.C:
-			a.TryNewAction()
+			a.check()
 		case <-a.Stopper:
 			break Run
 		}
@@ -63,15 +55,19 @@ Run:
 	a.Life.End()
 }
 
-func (a *ActionAgent) changeSieve(c *data.Change) {
+func (a *RoutineAgent) changeSieve(c *data.Change) {
 	if c.Record.ID() != a.Client().ID() {
 		return
 	}
 
-	a.TryNewAction()
+	a.check()
 }
 
-func (a *ActionAgent) TryNewAction() {
+func (a *RoutineAgent) ActionCandidate() models.Action {
+	return a.candidate
+}
+
+func (a *RoutineAgent) check() {
 	a.PopulateByID(a.User) // reload
 
 	act, _ := action.New(a)
@@ -85,22 +81,14 @@ func (a *ActionAgent) TryNewAction() {
 	}
 
 	actionable, err := a.User.CurrentActionable(a.Access)
-	if err == data.ErrNotFound {
-		// check with routine
-		return
-	}
-
-	if err != nil {
-		a.Delegate()
-		return // shit
+	if err == data.ErrNotFound || err != nil {
+		return // we got nothin to do
 	}
 
 	actionable.CompleteAction(a.Access, act)
 
 	nextAction, ok := actionable.NextAction(a.Access)
-
 	if !ok {
-		a.Delegate()
 		return
 	}
 
@@ -110,8 +98,4 @@ func (a *ActionAgent) TryNewAction() {
 	a.Save(nextAction)
 	a.Save(a.User)
 	log.Print("Action Agent Set New Action")
-}
-
-func (a *ActionAgent) Delegate() {
-	return
 }

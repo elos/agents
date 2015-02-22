@@ -12,13 +12,13 @@ type ClientDataAgent struct {
 	autonomous.Life
 	autonomous.Managed
 	autonomous.Stopper
-	*data.Access
+	data.Access
 
 	read chan *transfer.Envelope
 	transfer.SocketConnection
 }
 
-func NewClientDataAgent(c transfer.SocketConnection, access *data.Access) *ClientDataAgent {
+func NewClientDataAgent(c transfer.SocketConnection, access data.Access) *ClientDataAgent {
 	a := new(ClientDataAgent)
 
 	a.Life = autonomous.NewLife()
@@ -29,7 +29,7 @@ func NewClientDataAgent(c transfer.SocketConnection, access *data.Access) *Clien
 }
 
 func (a *ClientDataAgent) Start() {
-	var mc chan *data.Change = *a.RegisterForChanges()
+	var mc chan *data.Change = *a.RegisterForChanges(a.Client())
 	go ReadSocketConnection(a.SocketConnection, a.read, a.Stopper)
 	a.Life.Begin()
 

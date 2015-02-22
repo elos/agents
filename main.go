@@ -8,10 +8,10 @@ import (
 	"github.com/elos/models"
 )
 
-type AgentConstructor func(*data.Access, models.User) autonomous.Agent
+type AgentConstructor func(data.Access, models.User) autonomous.Agent
 
 var AgentOptions = map[string]AgentConstructor{
-	"action": func(a *data.Access, u models.User) autonomous.Agent {
+	"action": func(a data.Access, u models.User) autonomous.Agent {
 		return NewActionAgent(a, u)
 	},
 }
@@ -22,11 +22,11 @@ type MainAgent struct {
 	autonomous.Stopper
 	*autonomous.Hub
 
-	*data.Access
+	data.Access
 	models.User
 }
 
-func NewMainAgent(a *data.Access, u models.User) *MainAgent {
+func NewMainAgent(a data.Access, u models.User) *MainAgent {
 	return &MainAgent{
 		Access:  a,
 		User:    u,

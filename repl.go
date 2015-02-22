@@ -7,7 +7,7 @@ import (
 
 	"github.com/elos/autonomous"
 	"github.com/elos/data"
-	"github.com/elos/space"
+	"github.com/elos/models/memory"
 	"github.com/elos/transfer"
 	"github.com/robertkrimen/otto"
 )
@@ -16,15 +16,15 @@ type REPLAgent struct {
 	autonomous.Life
 	autonomous.Managed
 	autonomous.Stopper
-	*data.Access
+	data.Access
 
 	transfer.SocketConnection
 
-	space *space.Space
+	space *memory.Space
 	otto  *otto.Otto
 }
 
-func NewREPLAgent(c transfer.SocketConnection, access *data.Access) *REPLAgent {
+func NewREPLAgent(c transfer.SocketConnection, access data.Access) *REPLAgent {
 	a := new(REPLAgent)
 
 	a.Life = autonomous.NewLife()
@@ -32,7 +32,7 @@ func NewREPLAgent(c transfer.SocketConnection, access *data.Access) *REPLAgent {
 	a.SocketConnection = c
 	a.Access = access
 
-	s, _ := space.Access(access)
+	s, _ := memory.Access(access)
 
 	a.space = s
 	a.otto = otto.New()
