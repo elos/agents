@@ -1,8 +1,6 @@
 package agents
 
 import (
-	"sync"
-
 	"github.com/elos/autonomous"
 	"github.com/elos/data"
 	"github.com/elos/models"
@@ -37,9 +35,10 @@ func NewMainAgent(a data.Access, u models.User) *MainAgent {
 }
 
 func (a *MainAgent) Start() {
-	a.Life.Begin()
 	go a.Hub.Start()
+	a.Hub.WaitStart()
 
+	a.Life.Begin()
 	for _, constructor := range AgentOptions {
 		go a.Hub.StartAgent(constructor(a.Access, a.User))
 	}
@@ -49,16 +48,7 @@ func (a *MainAgent) Start() {
 }
 
 func (a *MainAgent) shutdown() {
-	var wg sync.WaitGroup
-
-	go func() {
-		wg.Add(1)
-		a.Hub.WaitStop()
-		wg.Done()
-	}()
-
-	a.Hub.Stop()
-
-	wg.Wait()
+	go a.Hub.Stop()
+	a.Hub.WaitStop()
 	a.Life.End()
 }
