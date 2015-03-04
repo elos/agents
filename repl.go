@@ -7,7 +7,7 @@ import (
 
 	"github.com/elos/autonomous"
 	"github.com/elos/data"
-	"github.com/elos/models/memory"
+	"github.com/elos/models/interactive"
 	"github.com/elos/transfer"
 	"github.com/robertkrimen/otto"
 )
@@ -20,7 +20,7 @@ type REPLAgent struct {
 
 	transfer.SocketConnection
 
-	space *memory.Space
+	space *interactive.Space
 	otto  *otto.Otto
 }
 
@@ -32,7 +32,7 @@ func NewREPLAgent(c transfer.SocketConnection, access data.Access) *REPLAgent {
 	a.SocketConnection = c
 	a.Access = access
 
-	s, _ := memory.Access(access)
+	s, _ := interactive.Access(access)
 
 	a.space = s
 	a.otto = otto.New()
