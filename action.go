@@ -7,7 +7,6 @@ import (
 	"github.com/elos/autonomous"
 	"github.com/elos/data"
 	"github.com/elos/models"
-	"github.com/elos/models/action"
 )
 
 type ActionAgent struct {
@@ -17,10 +16,10 @@ type ActionAgent struct {
 
 	data.Access
 	models.User
-	ticker *time.Ticker
 
 	*autonomous.Hub
 	*RoutineAgent
+	*CalendarAgent
 }
 
 func NewActionAgent(a data.Access, u models.User) *ActionAgent {
@@ -34,26 +33,22 @@ func NewActionAgent(a data.Access, u models.User) *ActionAgent {
 }
 
 func (a *ActionAgent) Start() {
+	// This agent is a hub, itself.
 	go a.Hub.Start()
 
+	// Routine Agent is currently the only known actionable
+	// entity.
 	a.RoutineAgent = NewRoutineAgent(a.Access, a.User)
 	go a.StartAgent(a.RoutineAgent)
 
-	a.ticker = time.NewTicker(1 * time.Second)
-	a.Life.Begin()
-	log.Print("Action Agent Booting up")
-
-	// FIXME subscribe directly to user, db access have
-	// a client different than theusercan be different than the user
 	changes := *a.Access.RegisterForChanges(a.User)
+	a.Life.Begin()
 
 Run:
 	for {
 		select {
 		case c := <-changes:
 			go a.changeSieve(c)
-		case <-a.ticker.C:
-			a.TryNewAction()
 		case <-a.Stopper:
 			break Run
 		}
@@ -64,20 +59,19 @@ Run:
 }
 
 func (a *ActionAgent) changeSieve(c *data.Change) {
-	if c.Record.ID() != a.Client().ID() {
-		return
+	if c.Record.ID() == a.Client().ID() { // The user changed
+		a.TryNewAction()
 	}
+}
 
-	a.TryNewAction()
+func (a *ActionAgent) reload() {
+	a.PopulateByID(a.User)
 }
 
 func (a *ActionAgent) TryNewAction() {
-	a.PopulateByID(a.User) // reload
-
-	act, _ := action.New(a)
-
-	if err := a.User.CurrentAction(a.Access, act); err != nil {
-		log.Print(err.Error())
+	act, err := a.User.CurrentAction(a.Access)
+	if err != nil {
+		log.Printf("TODO %s", err.Error())
 	}
 
 	if !act.Completed() {
@@ -86,6 +80,7 @@ func (a *ActionAgent) TryNewAction() {
 
 	actionable, err := a.User.CurrentActionable(a.Access)
 	if err == data.ErrNotFound {
+		a.Delegate()
 		// check with routine
 		return
 	}
@@ -95,11 +90,16 @@ func (a *ActionAgent) TryNewAction() {
 		return // shit
 	}
 
+	a.CompleteAction(act, actionable)
+}
+
+func (a *ActionAgent) CompleteAction(act models.Action, actionable models.Actionable) {
 	actionable.CompleteAction(a.Access, act)
 
-	nextAction, ok := actionable.NextAction(a.Access)
+	nextAction, err := actionable.NextAction(a.Access)
 
-	if !ok {
+	if err != nil {
+		a.DemoteCurrentActionable()
 		a.Delegate()
 		return
 	}
@@ -109,9 +109,36 @@ func (a *ActionAgent) TryNewAction() {
 
 	a.Save(nextAction)
 	a.Save(a.User)
+
 	log.Print("Action Agent Set New Action")
 }
 
+func (a *ActionAgent) DemoteCurrentActionable() error {
+	a.User.ClearCurrentActionable()
+	return a.Save(a.User)
+}
+
+// Invariants: the current action is complete and
+// the current actionable is null
 func (a *ActionAgent) Delegate() {
+	cand, exists := a.CalendarAgent.Candidate()
+	if exists {
+		act, err := a.CalendarAgent.ResponsibleActionable()
+		if err != nil {
+			a.SetCurrentAction(cand)
+			a.SetCurrentActionable(act)
+		}
+	}
+	// ask calendar
 	return
+}
+
+func (a *ActionAgent) SetCurrentAction(act models.Action) {
+	a.User.SetCurrentAction(act)
+	a.Access.Save(a.User)
+}
+
+func (a *ActionAgent) SetCurrentActionable(act models.Actionable) {
+	a.User.SetCurrentActionable(act)
+	a.Access.Save(a.User)
 }
