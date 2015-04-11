@@ -14,7 +14,7 @@ type ActionAgent struct {
 	autonomous.Managed
 	autonomous.Stopper
 
-	data.Access
+	models.Store
 	models.User
 
 	*autonomous.Hub
@@ -22,9 +22,9 @@ type ActionAgent struct {
 	*CalendarAgent
 }
 
-func NewActionAgent(a data.Access, u models.User) *ActionAgent {
+func NewActionAgent(store models.Store, u models.User) *ActionAgent {
 	return &ActionAgent{
-		Access:  a,
+		Store:   store,
 		User:    u,
 		Life:    autonomous.NewLife(),
 		Stopper: make(autonomous.Stopper),
@@ -38,10 +38,10 @@ func (a *ActionAgent) Start() {
 
 	// Routine Agent is currently the only known actionable
 	// entity.
-	a.RoutineAgent = NewRoutineAgent(a.Access, a.User)
+	a.RoutineAgent = NewRoutineAgent(a.Store, a.User)
 	go a.StartAgent(a.RoutineAgent)
 
-	changes := *a.Access.RegisterForChanges(a.User)
+	changes := *a.Store.RegisterForChanges(a.User)
 	a.Life.Begin()
 
 Run:
@@ -59,7 +59,7 @@ Run:
 }
 
 func (a *ActionAgent) changeSieve(c *data.Change) {
-	if c.Record.ID() == a.Client().ID() { // The user changed
+	if c.Record.ID() == a.User.ID() { // The user changed
 		a.TryNewAction()
 	}
 }
@@ -69,7 +69,7 @@ func (a *ActionAgent) reload() {
 }
 
 func (a *ActionAgent) TryNewAction() {
-	act, err := a.User.CurrentAction(a.Access)
+	act, err := a.User.CurrentAction(a.Store)
 	if err != nil {
 		log.Printf("TODO %s", err.Error())
 	}
@@ -78,7 +78,7 @@ func (a *ActionAgent) TryNewAction() {
 		return // not done
 	}
 
-	actionable, err := a.User.CurrentActionable(a.Access)
+	actionable, err := a.User.CurrentActionable(a.Store)
 	if err == data.ErrNotFound {
 		a.Delegate()
 		// check with routine
@@ -94,9 +94,9 @@ func (a *ActionAgent) TryNewAction() {
 }
 
 func (a *ActionAgent) CompleteAction(act models.Action, actionable models.Actionable) {
-	actionable.CompleteAction(a.Access, act)
+	actionable.CompleteAction(a.Store, act)
 
-	nextAction, err := actionable.NextAction(a.Access)
+	nextAction, err := actionable.NextAction(a.Store)
 
 	if err != nil {
 		a.DemoteCurrentActionable()
@@ -135,10 +135,10 @@ func (a *ActionAgent) Delegate() {
 
 func (a *ActionAgent) SetCurrentAction(act models.Action) {
 	a.User.SetCurrentAction(act)
-	a.Access.Save(a.User)
+	a.Store.Save(a.User)
 }
 
 func (a *ActionAgent) SetCurrentActionable(act models.Actionable) {
 	a.User.SetCurrentActionable(act)
-	a.Access.Save(a.User)
+	a.Store.Save(a.User)
 }

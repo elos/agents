@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/elos/autonomous"
-	"github.com/elos/data"
 	"github.com/elos/models"
 )
 
@@ -13,16 +12,16 @@ type RoutineAgent struct {
 	autonomous.Managed
 	autonomous.Stopper
 
-	data.Access
+	models.Store
 	models.User
 	ticker *time.Ticker
 
 	candidate models.Action
 }
 
-func NewRoutineAgent(a data.Access, u models.User) *RoutineAgent {
+func NewRoutineAgent(store models.Store, u models.User) *RoutineAgent {
 	return &RoutineAgent{
-		Access:  a,
+		Store:   store,
 		User:    u,
 		Life:    autonomous.NewLife(),
 		Stopper: make(autonomous.Stopper),

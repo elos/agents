@@ -7,7 +7,9 @@ import (
 
 	"github.com/elos/autonomous"
 	"github.com/elos/data"
+	"github.com/elos/models"
 	"github.com/elos/models/interactive"
+	"github.com/elos/models/persistence"
 	"github.com/elos/transfer"
 	"github.com/robertkrimen/otto"
 )
@@ -32,7 +34,7 @@ func NewREPLAgent(c transfer.SocketConnection, access data.Access) *REPLAgent {
 	a.SocketConnection = c
 	a.Access = access
 
-	s, _ := interactive.Access(access)
+	s, _ := interactive.Store(persistence.ModelsStore(access), access.Client().(models.User))
 
 	a.space = s
 	a.otto = otto.New()

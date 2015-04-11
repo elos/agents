@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/elos/autonomous"
-	"github.com/elos/data"
 	"github.com/elos/models"
 )
 
@@ -15,7 +14,7 @@ type CalendarAgent struct {
 	autonomous.Managed
 	autonomous.Stopper
 
-	data.Access
+	models.Store
 	models.Calendar
 	models.User
 
@@ -24,11 +23,11 @@ type CalendarAgent struct {
 	candidate models.Action
 }
 
-func NewCalendarAgent(a data.Access, u models.User) *CalendarAgent {
+func NewCalendarAgent(a models.Store, u models.User) *CalendarAgent {
 	c, _ := u.Calendar(a)
 
 	return &CalendarAgent{
-		Access:   a,
+		Store:    a,
 		User:     u,
 		Calendar: c,
 		Life:     autonomous.NewLife(),
@@ -55,7 +54,7 @@ Run:
 }
 
 func (a *CalendarAgent) check() {
-	nextFixture, err := a.Calendar.NextFixture(a.Access)
+	nextFixture, err := a.Calendar.NextFixture(a.Store)
 	if err != nil {
 		return
 	}
@@ -69,7 +68,7 @@ func (a *CalendarAgent) placeCandidate(f models.Fixture) {
 	a.Calendar.SetCurrentFixture(f)
 	a.Save(a.Calendar)
 
-	actionn, err := a.Calendar.NextAction(a.Access)
+	actionn, err := a.Calendar.NextAction(a.Store)
 	if err != nil {
 		log.Print(err)
 		return
@@ -80,7 +79,7 @@ func (a *CalendarAgent) placeCandidate(f models.Fixture) {
 
 func (a *CalendarAgent) ResponsibleActionable() (models.Actionable, error) {
 	if a.candidate != nil {
-		return a.Calendar.CurrentFixture(a.Access)
+		return a.Calendar.CurrentFixture(a.Store)
 	} else {
 		return nil, errors.New("No responsible acitonable")
 	}
