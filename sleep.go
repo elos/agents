@@ -5,6 +5,7 @@ import (
 
 	"github.com/elos/autonomous"
 	"github.com/elos/data"
+	"github.com/elos/models"
 )
 
 var DefaultSleepAgentStartPeriod time.Duration = 10 * time.Second
@@ -21,7 +22,7 @@ type SleepAgent struct {
 	DB data.DB
 }
 
-func NewSleepAgent(db data.DB, a data.Identifiable, d time.Duration) autonomous.Agent {
+func NewSleepAgent(db data.DB, u *models.User, d time.Duration) autonomous.Agent {
 	s := new(SleepAgent)
 
 	s.Life = autonomous.NewLife()

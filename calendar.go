@@ -1,11 +1,10 @@
 package agents
 
 import (
-	"errors"
-	"log"
 	"time"
 
 	"github.com/elos/autonomous"
+	"github.com/elos/data"
 	"github.com/elos/models"
 )
 
@@ -14,77 +13,23 @@ type CalendarAgent struct {
 	autonomous.Managed
 	autonomous.Stopper
 
-	models.Store
-	models.Calendar
-	models.User
+	data.DB
+	*models.Calendar
+	*models.User
 
 	ticker *time.Ticker
 
 	candidate models.Action
 }
 
-func NewCalendarAgent(a models.Store, u models.User) *CalendarAgent {
-	c, _ := u.Calendar(a)
+func NewCalendarAgent(db data.DB, u *models.User) *CalendarAgent {
+	c, _ := u.Calendar(db)
 
 	return &CalendarAgent{
-		Store:    a,
+		DB:       db,
 		User:     u,
 		Calendar: c,
 		Life:     autonomous.NewLife(),
 		Stopper:  make(autonomous.Stopper),
 	}
-}
-
-func (a *CalendarAgent) Start() {
-	a.Life.Begin()
-
-	a.ticker = time.NewTicker(1 * time.Second)
-
-Run:
-	for {
-		select {
-		case <-a.ticker.C:
-			a.check()
-		case <-a.Stopper:
-			break Run
-		}
-	}
-	<-a.Stopper
-	a.Life.End()
-}
-
-func (a *CalendarAgent) check() {
-	nextFixture, err := a.Calendar.NextFixture(a.Store)
-	if err != nil {
-		return
-	}
-
-	if nextFixture.StartTime().Sub(time.Now()) < 1*time.Minute {
-		a.placeCandidate(nextFixture)
-	}
-}
-
-func (a *CalendarAgent) placeCandidate(f models.Fixture) {
-	a.Calendar.SetCurrentFixture(f)
-	a.Save(a.Calendar)
-
-	actionn, err := a.Calendar.NextAction(a.Store)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-
-	a.candidate = actionn
-}
-
-func (a *CalendarAgent) ResponsibleActionable() (models.Actionable, error) {
-	if a.candidate != nil {
-		return a.Calendar.CurrentFixture(a.Store)
-	} else {
-		return nil, errors.New("No responsible acitonable")
-	}
-}
-
-func (a *CalendarAgent) Candidate() (models.Action, bool) {
-	return a.candidate, a.candidate != nil
 }
