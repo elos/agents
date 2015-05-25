@@ -69,7 +69,7 @@ Read:
 		}
 
 		if len(c.Command) > 0 {
-			a.Conn.WriteJSON(a.env.Interpret(c.Command))
+			a.Conn.WriteJSON(&output{a.env.Interpret(c.Command)})
 		}
 	}
 
