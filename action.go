@@ -42,6 +42,8 @@ func NewActionAgent(db data.DB, u *models.User) *ActionAgent {
 func (a *ActionAgent) Start() {
 	a.Life.Begin()
 
+	// filter data on UserKind that equals this user's id
+	// (only get updates to this user)
 	changes := data.Filter(data.FilterKind(a.DB.Changes(), models.UserKind), func(change *data.Change) bool {
 		return change.Record.ID() == a.User.ID()
 	})
